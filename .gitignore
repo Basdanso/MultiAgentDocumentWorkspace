@@ -6,6 +6,30 @@ __pycache__/
 # C extensions
 *.so
 
+# my specific project files and folders
+playgroundapp.py
+templates/playgroundindex.html
+static/styles.css
+indexed_files.json
+
+# My Folders
+local_faiss_index/
+uploads/
+uploaded_docs/
+
+# Langchain and Langraph ecosystem
+*.index
+*.pkl
+.langraph/
+.langchain_cache/
+.langsmith/
+.langraph_api/
+langraph.json.local
+.idea
+
+
+
+
 # Distribution / packaging
 .Python
 build/
@@ -151,6 +175,9 @@ activemq-data/
 .env
 .envrc
 .venv
+.env.local
+.env.*.local
+*.env
 env/
 venv/
 ENV/
