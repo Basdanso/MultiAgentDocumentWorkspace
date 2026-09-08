@@ -24,8 +24,8 @@ REGISTRY_FILE = "indexed_files.json"
 
 
 # =====================================================================
-# 1. FILE UTILITIES & PARSER (Document Processing Module)
-# =====================================================================
+# File Utilities and Parser (Document Processing Module)
+
 def get_file_hash(file_path: str) -> str:
     hasher = hashlib.md5()
     with open(file_path, 'rb') as f:
@@ -86,8 +86,6 @@ def parse_source_documents(file_paths: List[str]) -> List[LC_Document]:
                     page_content=markdown_table, metadata={"source": filename}
                 )
             )
-
-        # --- 5. NEW PLAIN TEXT PARSER ---
         elif path.endswith(".txt"):
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read()
@@ -101,7 +99,8 @@ def parse_source_documents(file_paths: List[str]) -> List[LC_Document]:
     return raw_documents
 
 
-
+# ===============================================================================
+# VECTOR DB
 def get_or_create_vector_store(file_paths: List[str], embeddings_model) -> FAISS:
     vector_store = None
     if os.path.exists(DB_DIR) and os.path.isdir(DB_DIR):
@@ -138,14 +137,14 @@ def get_or_create_vector_store(file_paths: List[str], embeddings_model) -> FAISS
     return vector_store
 
 
-# =====================================================================
 # 2. AGENT DEFINITIONS & STATE
 # =====================================================================
 
 # Define structured routing outputs for our Orchestrator
 class RouterOutput(BaseModel):
     next_action: Literal["rag_search", "summarize"] = Field(
-        description="Choose 'summarize' if the query asks for a broad overview/summary of the document. Choose 'rag_search' for specific data extraction, specific metrics, or deep factual QA."
+        description="Choose 'summarize' if the query asks for a broad overview/summary of the document. Choose "
+                    "'rag_search' for specific data extraction, specific metrics, or deep factual QA. "
     )
     reasoning: str = Field(description="Explanation for selecting this execution path.")
 
@@ -162,7 +161,7 @@ class AgentState(TypedDict):
     retry_count: int
 
 
-# Initialize backing LLMs
+# Initialize Backing LLMs
 llm_fast = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 llm_structured = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
@@ -174,7 +173,8 @@ def orchestrator_agent(state: AgentState) -> Dict[str, Any]:
 
     router_prompt = ChatPromptTemplate.from_messages([
         ("system",
-         "You are an intelligent supervisor orchestrating a multi-agent system. Decide whether the user query requires a full file summary or a precision local search."),
+         "You are an intelligent supervisor orchestrating a multi-agent system. Decide whether the user query "
+         "requires a full file summary or a precision local search."),
         ("human", "User Query: {user_query}")
     ])
 
@@ -194,12 +194,13 @@ def rag_search_agent(state: AgentState) -> Dict[str, Any]:
 
     docs = retriever.invoke(state["user_query"])
     context = "\n\n".join([
-        f"[Source: {d.metadata.get('source')} Page/Sheet: {d.metadata.get('page', d.metadata.get('sheet', 'N/A'))}]: {d.page_content}"
+        f"[Source: {d.metadata.get('source')} Page/Sheet: {d.metadata.get('page', d.metadata.get('sheet', 'N/A'))}]: {d.page_content} "
         for d in docs])
 
     qa_prompt = ChatPromptTemplate.from_messages([
         ("system",
-         "Answer the user question precisely based strictly on the provided chunks. Cite your sources. Context:\n\n{context}"),
+         "Answer the user question precisely based strictly on the provided chunks. Cite your sources. Context:\n\n{"
+         "context}"),
         ("human", "{user_query}")
     ])
 
@@ -210,7 +211,7 @@ def rag_search_agent(state: AgentState) -> Dict[str, Any]:
 # --- AGENT 3: Document Summarization / Synthesis Agent ---
 def summarization_agent(state: AgentState) -> Dict[str, Any]:
     print("📝 [Summarization Agent] Assembling complete file context...")
-    # Load all items from vector store store to form an overarching context blueprint
+    # Load all items from vector store to form an overarching context blueprint
     vector_store = get_or_create_vector_store(state["file_paths"], embeddings)
 
     # Pull maximum available context limits for summary synthesis
@@ -219,7 +220,8 @@ def summarization_agent(state: AgentState) -> Dict[str, Any]:
 
     summary_prompt = ChatPromptTemplate.from_messages([
         ("system",
-         "Generate a clear, professional executive summary of the document contents. Structure your answer with clear headers and bullet points."),
+         "Generate a clear, professional executive summary of the document contents. Structure your answer with clear "
+         "headers and bullet points."),
         ("human", "Summarize this material based on this query: {user_query}\n\nDocument Data:\n{context}")
     ])
 
@@ -230,7 +232,8 @@ def summarization_agent(state: AgentState) -> Dict[str, Any]:
 # --- AGENT 4: Guardrail / Reviewer Agent ---
 class GuardrailOutput(BaseModel):
     verdict: Literal["passed", "failed"] = Field(
-        description="'passed' if response is perfectly grounded in context. 'failed' if any hallucinations, unverified numbers, or omissions are detected.")
+        description="'passed' if response is perfectly grounded in context. 'failed' if any hallucinations, "
+                    "unverified numbers, or omissions are detected.")
     critique: str = Field(description="Constructive revision instructions if failed, otherwise empty.")
 
 
@@ -239,7 +242,8 @@ def guardrail_reviewer_agent(state: AgentState) -> Dict[str, Any]:
 
     review_prompt = ChatPromptTemplate.from_messages([
         ("system",
-         "You are an audit agent checking a draft answer against original background text chunks. Flag any hallucinated figures or unsourced assumptions."),
+         "You are an audit agent checking a draft answer against original background text chunks. Flag any "
+         "hallucinated figures or unsourced assumptions."),
         ("human", "Background Context:\n{context}\n\nDraft Answer:\n{draft}"),
     ])
 
@@ -258,8 +262,7 @@ def guardrail_reviewer_agent(state: AgentState) -> Dict[str, Any]:
 
 
 # =====================================================================
-# 3. GRAPH COMPOSITION & ROUTING LOGIC
-# =====================================================================
+# GRAPH COMPOSITION & ROUTING LOGIC
 def route_from_orchestrator(state: AgentState):
     return state["next_node"]
 
@@ -267,13 +270,13 @@ def route_from_orchestrator(state: AgentState):
 def route_from_reviewer(state: AgentState):
     if state["review_status"] == "passed":
         return END
-    return "rag_search"  # Route back to re-try extraction with guardrail notesConstruct State Graph Layoutworkflow = StateGraph(AgentState)Add Agent Process Blocksworkflow.add_node("orchestrator", orchestrator_agent)workflow.add_node("rag_search", rag_search_agent)workflow.add_node("summarize", summarization_agent)workflow.add_node("reviewer", guardrail_reviewer_agent)Set Graph Interconnections / Workflow Sequenceworkflow.add_edge(START, "orchestrator")workflow.add_conditional_edges("orchestrator",route_from_orchestrator,{"rag_search": "rag_search","summarize": "summarize"})workflow.add_edge("rag_search", "reviewer")workflow.add_edge("summarize", "reviewer")workflow.add_conditional_edges("reviewer",route_from_reviewer,{END: END,"rag_search": "rag_search"})Compile Graph Appagent_pipeline = workflow.compile()=====================================================================4. EXECUTION INTERFACE=====================================================================def ask_multi_agent_rag(file_paths: List[str], user_query: str) -> str:initial_state: AgentState = {"file_paths": file_paths,"user_query": user_query,"next_node": "","retrieved_context": "","draft_answer": "","final_answer": "","review_status": "passed","retry_count": 0}final_output = agent_pipeline.invoke(initial_state)return final_output["final_answer"]--- Local Integration Testing Mock Execution ---if name == "main":# Ensure you set your environment variable: os.environ["OPENAI_API_KEY"] = "sk-..."# Create a dummy run if mock files exist# print(ask_multi_agent_rag(["sample.pdf"], "Summarize the entire document into 3 key takeaways"))pass
+    return "rag_search"
 
 
 # construct a graph layout
 workflow = StateGraph(AgentState)
 
-#Add Agent Process Blocks
+# Add Agent Process Blocks
 workflow.add_node("orchestrator", orchestrator_agent)
 workflow.add_node("rag_search", rag_search_agent)
 workflow.add_node("summarize", summarization_agent)
@@ -292,7 +295,7 @@ workflow.add_edge("rag_search", "reviewer")
 workflow.add_edge("summarize", "reviewer")
 
 workflow.add_conditional_edges(
-    "reviewer",route_from_reviewer,
+    "reviewer", route_from_reviewer,
     {
         END: END,
         "rag_search": "rag_search"}
@@ -300,6 +303,7 @@ workflow.add_conditional_edges(
 
 # Compile Graph App
 agent_pipeline = workflow.compile()
+
 
 # 4. EXECUTION INTERFACE
 def ask_multi_agent_rag(file_paths: List[str], user_query: str) -> str:
@@ -315,23 +319,3 @@ def ask_multi_agent_rag(file_paths: List[str], user_query: str) -> str:
     }
     final_output = agent_pipeline.invoke(initial_state)
     return final_output["final_answer"]
-
-
-
-
-
-
-
-
-
-# How to use it
-
-# files = ["data/quarterly_report.pdf", "data/notes.docx", "data/simple_sheet.xlsx"]
-#
-# # --- RUN 1 (Processes, embeds, and saves to disk) ---
-# res1 = ask_persistent_rag(files, "What is our main objective?")
-# print(res1["answer"])
-#
-# # --- RUN 2 (Bypasses text processing completely, loads from disk instantly) ---
-# res2 = ask_persistent_rag(files, "Summarize the column headers in the excel sheet.")
-# print(res2["answer"])

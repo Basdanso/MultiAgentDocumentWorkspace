@@ -5,21 +5,13 @@ from werkzeug.utils import secure_filename
 
 # Import modules from our multi-agent file
 from multi_agent_rag_pipeline import get_or_create_vector_store, agent_pipeline, embeddings
-
-
 from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables from the .env file
 load_dotenv()
-
 # The SDK automatically detects the OPENAI_API_KEY environment variable
 client = OpenAI()
-
-
-
-# UPDATE TO USE WITH RAG PIPELINE FOR FRONT END AND CONNECT WITH RAG TOGETHER WITH CHAT WINDOW. DONT ADD CODE FROM TXT FILE. THIS IS CLRAN
-
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploaded_docs'
@@ -45,9 +37,9 @@ def sync_tracked_files_from_disk():
 sync_tracked_files_from_disk()
 
 
-# ---------------------------------------------------------------------
-# CLEAN BACKEND API ROUTES
-# ---------------------------------------------------------------------
+# ==========================================================================
+# BACKEND API ROUTES
+
 @app.route('/')
 def index():
     from multi_agent_rag_pipeline import DB_DIR
@@ -124,7 +116,3 @@ def chat():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
-
-
-
