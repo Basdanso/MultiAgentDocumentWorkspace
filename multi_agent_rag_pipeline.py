@@ -124,7 +124,7 @@ def get_or_create_vector_store(file_paths: List[str], embeddings_model) -> FAISS
         return vector_store
 
     raw_docs = parse_source_documents(files_to_process)
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=75)
     chunked_docs = text_splitter.split_documents(raw_docs)
 
     if vector_store:
@@ -186,7 +186,7 @@ def orchestrator_agent(state: AgentState) -> Dict[str, Any]:
     return {"next_node": decision.next_action}
 
 
-# --- AGENT 2: Precision RAG / Search Agent ---
+# --- AGENT 2: Precision RAG / Search Agent  Intelligent Retrieval---
 def rag_search_agent(state: AgentState) -> Dict[str, Any]:
     print("🔍 [RAG Search Agent] Querying vector indexes...")
     vector_store = get_or_create_vector_store(state["file_paths"], embeddings)

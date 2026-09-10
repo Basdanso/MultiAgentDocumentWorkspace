@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 # Load environment variables from the .env file
 load_dotenv()
-# The SDK automatically detects the OPENAI_API_KEY environment variable
+# Detects the OPENAI_API_KEY environment variable
 client = OpenAI()
 
 app = Flask(__name__)
