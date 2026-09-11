@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Assistant with Multi-Agent Logs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>📚 Multi-Agent Document Workspace</h2>
+
+        <div class="section">
+            <h3>1. Upload Documents</h3>
+            <form id="upload-form">
+                <input type="file" id="file-input" name="files" multiple required>
+                <button type="submit" id="upload-btn">
+                    <span id="upload-spinner" class="spinner hidden"></span>
+                    <span id="upload-text">Upload Documents</span>
+                </button>
+            </form>
+            <div id="status-msg" class="hidden"></div>
+        </div>
+
+        <div class="section" id="chat-section" style="display:none;">
+            <h3>2. Collaborative Execution Room</h3>
+            <div class="chat-layout">
+                <div>
+                    <div id="chat-window">
+                        <div class="message ai-msg">Hello! Ask me any simple details, complex summary inquiries or queries regarding your document portfolio.</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="query-input" placeholder="Ask a question or request a summary...">
+                        <button id="send-btn">Ask Team</button>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #555;">⚡ Real-time Agent Logs:</div>
+                    <div id="agent-logs">> System ready. Waiting for tasks...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('upload-form');
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadSpinner = document.getElementById('upload-spinner');
+        const uploadText = document.getElementById('upload-text');
+        const statusMsg = document.getElementById('status-msg');
+        const chatSection = document.getElementById('chat-section');
+        const chatWindow = document.getElementById('chat-window');
+        const agentLogs = document.getElementById('agent-logs');
+        const queryInput = document.getElementById('query-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Replaced the inline variable dump with a clean HTML data attribute setup
+            const dbExists = document.body.dataset.dbExists === 'true';
+            if (dbExists) {
+                chatSection.style.display = 'block';
+            }
+        });
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            uploadBtn.disabled = true;
+            uploadSpinner.classList.remove('hidden');
+            uploadText.innerText = "Processing...";
+            statusMsg.classList.remove('hidden');
+            statusMsg.style.color = "#0070f3";
+            statusMsg.innerHTML = `<span class="spinner"></span> Reviewing chunks & extracting layout vectors...`;
+
+            const files = document.getElementById('file-input').files;
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
+
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await response.json();
+                statusMsg.style.color = "#28a745";
+                let msg = `Added: ${data.added.length} file(s).`;
+                if (data.skipped.length > 0) msg += ` Skipped duplicates: ${data.skipped.join(', ')}`;
+                statusMsg.innerText = "✅ " + msg;
+                chatSection.style.display = 'block';
+            } catch (err) {
+                statusMsg.style.color = "#dc3545";
+                statusMsg.innerText = "❌ Registration upload failed.";
+            } finally {
+                uploadBtn.disabled = false;
+                uploadSpinner.classList.add('hidden');
+                uploadText.innerText = "Upload Documents";
+            }
+        });
+
+        async function sendQuery() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            chatWindow.innerHTML += `<div class="message user-msg">${query}</div>`;
+            queryInput.value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            const aiMessageDiv = document.createElement('div');
+            aiMessageDiv.className = 'message ai-msg';
+            const textSpan = document.createElement('span');
+            textSpan.innerHTML = '<i>Waking up agent network...</i>';
+            aiMessageDiv.appendChild(textSpan);
+            chatWindow.appendChild(aiMessageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            agentLogs.innerHTML = "";
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                textSpan.innerText = "";
+
+                let buffer = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith("data: ")) continue;
+                        const rawJson = line.substring(6).trim();
+                        if (!rawJson) continue;
+
+                        try {
+                            const parsed = JSON.parse(rawJson);
+                            if (parsed.type === "log") {
+                                agentLogs.innerHTML += `<div class="log-entry"><span class="log-meta">[${parsed.node.toUpperCase()}]</span> ${parsed.message}</div>`;
+                                agentLogs.scrollTop = agentLogs.scrollHeight;
+                            } else if (parsed.type === "token") {
+                                textSpan.innerText += parsed.text;
+                                chatWindow.scrollTop = chatWindow.scrollHeight;
+                            }
+                        } catch(e) {}
+                    }
+                }
+            } catch (err) {
+                textSpan.innerText = "❌ System encountered routing error.";
+            }
+        }
+
+        sendBtn.addEventListener('click', sendQuery);
+        queryInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendQuery(); });
+    </script>
+</body>
+</html>
