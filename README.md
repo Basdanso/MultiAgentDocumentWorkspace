@@ -14,7 +14,6 @@ AI agents are used to plan, retrieve, reason, and validate the final output.
 - Retrival-Augumented Generation pipeline
 
 
-
 ## Installation
 
 Install my-project with pip
@@ -33,23 +32,54 @@ Install my-project with pip
 # Install dependencies
   pip install -r requirements.txt
 ```
-    
+
+## 🐳 Running with Docker
+
+You can run this application instantly using Docker without needing to install Python or any project dependencies locally.
+
+### Prerequisites
+* Ensure you have [Docker Desktop](https://docker.com) installed and running.
+* You will need an **OpenAI API Key**.
+
+### 1. Pull the Image from Docker Hub
+Download the latest pre-built image to your local machine:
+```bash
+docker pull basdanso/capstone_ml_gen_ai_flask:latest
+```
+
+### 2. Run the Container
+Choose one of the two methods below to supply your API key and launch the application:
+
+#### Option A: Pass the key directly in the terminal
+```bash
+docker run -d -p 5000:5000 -e OPENAI_API_KEY="your_actual_openai_api_key_here" basdanso/capstone_ml_gen_ai_flask:latest
+```
+
+#### Option B: Use a local `.env` file
+If you already have a `.env` file containing `OPENAI_API_KEY=your_key` in your current directory, run:
+```bash
+docker run -d -p 5000:5000 --env-file .env basdanso/capstone_ml_gen_ai:latest
+```
+
+### 3. Access the Application
+Once the container status is active, open your web browser and navigate to:
+👉 **[http://localhost:5000](http://localhost:5000)**
+
+### 🛑 Stopping the Application
+To stop the background container, find its ID and stop it:
+```bash
+docker ps
+docker stop <CONTAINER_ID>
+```
+
 ## Tech Stack
 
-- Python
-- Flask
-- JS, HTML5, CSS
-- OpenAI
-- LangChain
-- LanGraph
-
+- Python, Flask, JS, HTML5, CSS, OpenAI, LangChain, LanGraph, Docker
 
 
 ## Contributing
 
-Contributions are always welcome!
-
-Please open an issue or submit a pull request for any changes.
+Contributions are always welcome!. Please open an issue or submit a pull request for any changes.
 
 Please adhere to this project's `code of conduct`.
 
